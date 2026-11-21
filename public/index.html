@@ -16,6 +16,7 @@
   <!-- Sets light/dark theme BEFORE the page paints (no white flash). External file because our CSP bans inline scripts. -->
   <script src="/js/theme-init.js"></script>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/theme-pro.css">
   <!-- TradingView Lightweight Charts (Apache-2.0), served locally from node_modules -->
   <script src="/vendor/lightweight-charts/lightweight-charts.standalone.production.js" defer></script>
   <script type="module" src="/js/app.js"></script>
@@ -47,7 +48,8 @@
     </div>
 
     <div class="pills">
-      <button id="btn-theme" class="btn btn-small theme-toggle" title="Switch light / night mode" aria-label="Switch light / night mode">☀ LIGHT</button>
+      <button id="btn-theme" class="btn btn-small theme-toggle" title="Switch light / dark mode" aria-label="Switch light / dark mode">☀</button>
+      <button id="btn-settings" class="btn btn-small" title="Settings: theme and appearance" aria-label="Settings">⚙ Settings</button>
       <span id="pill-mode" class="pill">…</span>
       <span id="pill-stream" class="pill">…</span>
       <span id="pill-ai" class="pill">…</span>

@@ -1,0 +1,173 @@
+/* =============================================================================
+   theme-pro.css - the DEFAULT "Pro" look: a clean, professional charting
+   platform (flat panels, blue accent, teal/red candles, system font) in the
+   style of TradingView.
+   -----------------------------------------------------------------------------
+   How themes work:
+     * style.css         = the CYBERPUNK look (and all the base layout)
+     * this file         = overrides that apply only when <html data-style="pro">
+     * data-theme="dark" / "light" picks the colour set inside each style
+   Only the app NAME keeps its cyberpunk styling in this theme.
+   ============================================================================= */
+
+/* ---------- Pro colours: DARK ---------- */
+:root[data-style="pro"] {
+  --bg: #0f0f0f;            /* gaps between panels */
+  --bg-2: #1e222d;          /* inputs, cards */
+  --panel: #131722;         /* panel background */
+  --cyan: #2962ff;          /* main accent (blue) */
+  --pink: #f23645;          /* "down" / danger red */
+  --green: #089981;         /* "up" green */
+  --yellow: #f7a600;
+  --orange: #ff9800;
+  --purple: #7e57c2;
+  --text: #d1d4dc;
+  --muted: #787b86;
+  --border: #2a2e39;
+  --hover: rgba(255, 255, 255, 0.06);
+  --glow-cyan: none;
+  --glow-pink: none;
+  --card-bg: #1e222d;
+  --legend-bg: transparent;
+  --topbar-bg: #131722;
+  --page-bg: #0f0f0f;
+  --scanline-opacity: 0;
+  --on-accent: #ffffff;
+  --mono: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+  --display: var(--mono);
+  color-scheme: dark;
+}
+
+/* ---------- Pro colours: LIGHT ---------- */
+:root[data-style="pro"][data-theme="light"] {
+  --bg: #e0e3eb;
+  --bg-2: #ffffff;
+  --panel: #ffffff;
+  --text: #131722;
+  --muted: #787b86;
+  --border: #e0e3eb;
+  --hover: rgba(19, 23, 34, 0.05);
+  --yellow: #b27500;
+  --card-bg: #f8f9fd;
+  --topbar-bg: #ffffff;
+  --page-bg: #e0e3eb;
+  color-scheme: light;
+}
+
+/* ---------- The NAME keeps the cyberpunk style ---------- */
+[data-style="pro"] .logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 15px;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #00f0ff, #b967ff 55%, #ff2a6d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 4px rgba(0, 240, 255, 0.35));
+}
+[data-style="pro"] .glitch::before,
+[data-style="pro"] .glitch::after { display: none; } /* no glitch animation in Pro */
+
+/* ---------- Layout: separate panels with small gaps, list on the right ---------- */
+[data-style="pro"] body { font-size: 13px; }
+[data-style="pro"] .topbar {
+  border-bottom: none; box-shadow: none; padding: 4px 10px; gap: 6px; min-height: 46px; flex-wrap: nowrap;
+}
+[data-style="pro"] .layout {
+  gap: 4px; padding-top: 4px;
+  grid-template-columns: 1fr 360px;
+  grid-template-rows: minmax(150px, 32%) 1fr;
+  grid-template-areas: "chart watch" "chart side";
+}
+[data-style="pro"] .chart-wrap { grid-area: chart; border: none; background: var(--panel); border-radius: 0 6px 0 0; overflow: hidden; }
+[data-style="pro"] .watch { grid-area: watch; border: none; background: var(--panel); border-radius: 6px 0 0 0; }
+[data-style="pro"] .sidebar { grid-area: side; background: var(--panel); border-radius: 6px 0 0 0; }
+
+/* ---------- Header pieces ---------- */
+[data-style="pro"] .quote { min-width: 180px; font-size: 14px; }
+[data-style="pro"] .quote-symbol { color: var(--text); font-weight: 700; letter-spacing: 0; }
+[data-style="pro"] .quote-price { font-size: 17px; color: var(--text); text-shadow: none; font-weight: 600; }
+[data-style="pro"] .input.ticker { width: 120px; font-size: 14px; letter-spacing: 0.5px; font-weight: 600; }
+[data-style="pro"] .tf { border: none; border-radius: 4px; color: var(--text); font-size: 13px; padding: 5px 8px; }
+[data-style="pro"] .tf:hover { background: var(--hover); color: var(--text); }
+[data-style="pro"] .tf.active { color: var(--cyan); background: var(--hover); box-shadow: none; font-weight: 600; }
+[data-style="pro"] .timeframes { border-left: 1px solid var(--border); border-right: 1px solid var(--border); padding: 0 6px; }
+
+/* ---------- Controls: flat, rounded, no glow ---------- */
+[data-style="pro"] .input { border-radius: 4px; font-size: 13px; }
+[data-style="pro"] .input:focus { border-color: var(--cyan); box-shadow: none; }
+[data-style="pro"] .btn {
+  clip-path: none; border-radius: 4px; background: transparent; color: var(--text);
+  border: 1px solid transparent; font-size: 13px; letter-spacing: 0; padding: 5px 10px; font-weight: 500;
+}
+[data-style="pro"] .btn:hover:not(:disabled) { background: var(--hover); box-shadow: none; }
+[data-style="pro"] .btn-pink,
+[data-style="pro"] .ticker-form .btn,
+[data-style="pro"] #btn-ai-sim { background: var(--cyan); color: #fff; border-color: var(--cyan); }
+[data-style="pro"] .btn-pink:hover:not(:disabled),
+[data-style="pro"] .ticker-form .btn:hover,
+[data-style="pro"] #btn-ai-sim:hover:not(:disabled) { background: #1e53e5; }
+[data-style="pro"] .btn-small { font-size: 12px; padding: 3px 8px; border-color: var(--border); }
+[data-style="pro"] .count { background: var(--cyan); color: #fff; }
+[data-style="pro"] .pill { border-radius: 4px; letter-spacing: 0; font-size: 11px; font-weight: 600; }
+[data-style="pro"] .pill-ok { box-shadow: none; }
+[data-style="pro"] .icon:hover { color: var(--cyan); }
+
+/* ---------- Panels, tabs, titles ---------- */
+[data-style="pro"] .panel-title { font-size: 11px; letter-spacing: 0.4px; color: var(--muted); font-weight: 600; }
+[data-style="pro"] .tabs { border-bottom: 1px solid var(--border); }
+[data-style="pro"] .tab { font-size: 12px; letter-spacing: 0.3px; font-weight: 600; color: var(--muted); }
+[data-style="pro"] .tab:hover { color: var(--text); }
+[data-style="pro"] .tab.active { color: var(--text); border-bottom-color: var(--cyan); text-shadow: none; }
+/* Watchlist as a table: Symbol | Last | Chg% */
+[data-style="pro"] .watch { overflow-y: auto; }
+[data-style="pro"] .watchlist li { grid-template-columns: 1fr 80px 70px 16px; border-radius: 4px; }
+[data-style="pro"] .watchlist .wl-last { display: block; text-align: right; font-variant-numeric: tabular-nums; }
+[data-style="pro"] .wl-head { font-size: 11px; padding: 0 8px 4px; }
+[data-style="pro"] .wl-head span:nth-child(3) { text-align: right; }
+[data-style="pro"] .wl-row:hover { background: var(--hover); }
+[data-style="pro"] .wl-row.active { background: rgba(41, 98, 255, 0.15); }
+[data-style="pro"] .wl-row.active .wl-item { color: var(--text); text-shadow: none; }
+[data-style="pro"] .wl-item { font-size: 13px; padding: 6px 8px; font-weight: 600; font-family: var(--mono); }
+[data-style="pro"] .wl-item:hover { color: var(--text); text-shadow: none; }
+[data-style="pro"] .wl-chg { font-size: 13px; font-variant-numeric: tabular-nums; }
+
+/* Indicator legend in the chart's corner: plain text like a pro platform */
+[data-style="pro"] .legend-row { border-left: none; padding: 1px 4px; font-size: 13px; border-radius: 3px; }
+[data-style="pro"] .legend-row:hover { background: var(--hover); }
+[data-style="pro"] .chart-status { text-shadow: none; font-family: var(--mono); color: var(--muted); }
+
+/* ---------- 8-K watchdog cards ---------- */
+[data-style="pro"] .case { border-radius: 6px; border-color: var(--border); }
+[data-style="pro"] .case:hover, [data-style="pro"] .case:focus { box-shadow: none; border-color: var(--cyan); }
+[data-style="pro"] .case-overdue { border-left: 3px solid var(--pink); box-shadow: none; animation: none; }
+[data-style="pro"] .case-ticker { color: var(--text); font-weight: 700; letter-spacing: 0.5px; }
+[data-style="pro"] .badge { border-radius: 3px; letter-spacing: 0.3px; font-weight: 600; }
+[data-style="pro"] .flag { border-radius: 3px; letter-spacing: 0.3px; }
+[data-style="pro"] .clock-cell { border-radius: 2px; border-color: var(--border); background: var(--hover); }
+[data-style="pro"] .clock-cell.used { background: var(--cyan); border-color: var(--cyan); box-shadow: none; }
+[data-style="pro"] .clock-cell.used.over { background: var(--pink); border-color: var(--pink); box-shadow: none; }
+[data-style="pro"] .case-signal { color: var(--text); opacity: 0.85; }
+
+/* ---------- AI panel ---------- */
+[data-style="pro"] .ai-answer, [data-style="pro"] .decision-card { border-radius: 6px; }
+[data-style="pro"] .ai-who { letter-spacing: 0.3px; font-weight: 600; }
+[data-style="pro"] .decision { border-radius: 6px; letter-spacing: 2px; font-weight: 700; font-size: 24px; box-shadow: none !important; }
+
+/* ---------- Dialogs and pop-ups ---------- */
+[data-style="pro"] .modal { border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35); background: var(--panel); }
+[data-style="pro"] .modal-head h2 { color: var(--text); letter-spacing: 0; font-size: 16px; font-weight: 600; }
+[data-style="pro"] .picker-head { color: var(--muted); letter-spacing: 0.4px; font-weight: 600; }
+[data-style="pro"] .picker-item:hover { color: var(--text); background: var(--hover); }
+[data-style="pro"] .code { font-family: 'Share Tech Mono', ui-monospace, Menlo, Consolas, monospace; color: var(--text); }
+[data-style="pro"] .toast { border-radius: 6px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); border-color: var(--border); color: var(--text); background: var(--panel); }
+[data-style="pro"] .toast-warn { border-left: 3px solid var(--yellow); }
+[data-style="pro"] .toast-alert { border-left: 3px solid var(--pink); }
+[data-style="pro"] .toast-ok { border-left: 3px solid var(--green); }
+
+/* ---------- Small screens: stack everything ---------- */
+@media (max-width: 1100px) {
+  [data-style="pro"] .topbar { flex-wrap: wrap; }
+  [data-style="pro"] .layout { grid-template-columns: 1fr; grid-template-rows: auto; grid-template-areas: "chart" "side"; }
+}

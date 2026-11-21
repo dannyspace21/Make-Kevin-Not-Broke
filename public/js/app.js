@@ -44,18 +44,60 @@ const save = () => {
   storage.set('mknb.watchlist', state.watchlist);
 };
 
-// ------------------------------------------------ light / night mode --------
-// theme-init.js already set <html data-theme> before the page drew.
-const currentTheme = () => (document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
-const chart = new ChartManager($('#chart'), currentTheme());
+// ------------------------------------------------ appearance (themes) -------
+// Two choices, both in ⚙ Settings (theme-init.js applied them before the page drew):
+//   style: 'pro' (default, clean charting-platform look) | 'cyber' (neon cyberpunk)
+//   mode:  'dark' | 'light' | 'auto' (follow the computer)
+const root = document.documentElement;
+const currentStyle = () => (root.dataset.style === 'cyber' ? 'cyber' : 'pro');
+const currentMode = () => (root.dataset.theme === 'light' ? 'light' : 'dark');
+const chart = new ChartManager($('#chart'), currentStyle(), currentMode());
 
-/** Flip between light and night mode, remember the choice, recolour the chart. */
-function setTheme(theme) {
-  document.documentElement.dataset.theme = theme;
-  storage.set('mknb.theme', theme);
-  chart.applyTheme(theme);
-  if (state.bars.length) recomputeIndicators(true); // redraw guide lines (RSI 30/70...) in the new colours
-  $('#btn-theme').textContent = theme === 'light' ? '☾ NIGHT' : '☀ LIGHT'; // button shows the OTHER mode
+// The built-in indicators ship with neon colours (cyber look). In the Pro theme
+// we swap them for the calmer colours a professional platform would use.
+const PRO_COLORS = {
+  '#00f0ff': '#2962ff', '#ff2a6d': '#ff6d00', '#f9f871': '#00897b', '#b967ff': '#7e57c2',
+  '#05ffa1': '#089981', '#ffb800': '#f7a600', '#ff6ec7': '#e91e63', '#ffffff': '#787b86',
+};
+const themeColor = (c) => (currentStyle() === 'pro' && c ? PRO_COLORS[c.toLowerCase()] ?? c : c);
+
+/** Apply (and remember) a style and/or mode, then recolour the chart. */
+function applyAppearance({ style = currentStyle(), mode = storage.get('mknb.theme', 'auto') } = {}) {
+  const systemLight = window.matchMedia?.('(prefers-color-scheme: light)').matches;
+  const effective = mode === 'auto' ? (systemLight ? 'light' : 'dark') : mode;
+  root.dataset.style = style;
+  root.dataset.theme = effective;
+  storage.set('mknb.style', style);
+  storage.set('mknb.theme', mode);
+  chart.applyTheme(style, effective);
+  if (state.bars.length) recomputeIndicators(true); // indicator colours + guide lines follow the theme
+  $('#btn-theme').textContent = effective === 'light' ? '☾' : '☀'; // quick toggle shows the OTHER mode
+}
+
+/** ⚙ Settings dialog: pick the theme style and light/dark mode. */
+function openAppSettings() {
+  const savedMode = storage.get('mknb.theme', 'auto');
+  const choice = (name, value, title, desc, checked) => h('label', { class: `choice ${checked ? 'selected' : ''}` },
+    h('input', { type: 'radio', name, value, checked }),
+    h('span', { class: 'choice-title' }, title),
+    h('span', { class: 'choice-desc muted' }, desc));
+  const form = h('form', { class: 'settings-form', method: 'dialog' },
+    h('div', { class: 'picker-head' }, 'THEME'),
+    h('div', { class: 'choice-grid' },
+      choice('style', 'pro', 'Pro (default)', 'Clean, professional charting-platform look. Only the app name stays cyberpunk.', currentStyle() === 'pro'),
+      choice('style', 'cyber', 'Cyberpunk', 'Full neon look: glowing borders, scanlines, glitch logo.', currentStyle() === 'cyber')),
+    h('div', { class: 'picker-head' }, 'MODE'),
+    h('div', { class: 'choice-grid three' },
+      choice('mode', 'dark', 'Dark', 'Night-friendly', savedMode === 'dark'),
+      choice('mode', 'light', 'Light', 'Daytime', savedMode === 'light'),
+      choice('mode', 'auto', 'Auto', "Follow my computer's setting", savedMode !== 'dark' && savedMode !== 'light')));
+  // Apply instantly as you click, so you can preview each option.
+  form.addEventListener('change', () => {
+    const data = new FormData(form);
+    applyAppearance({ style: data.get('style'), mode: data.get('mode') });
+    form.querySelectorAll('.choice').forEach((el) => el.classList.toggle('selected', el.querySelector('input').checked));
+  });
+  openModal('Settings', form, h('div', { class: 'modal-actions' }, h('button', { class: 'btn btn-pink', onclick: closeModal }, 'Done')));
 }
 
 // ------------------------------------------------ custom-code sandbox -------
@@ -110,7 +152,7 @@ async function computeOne(ind, bars) {
     const def = getBuiltin(ind.ref);
     if (!def) return null;
     const params = sanitizeParams(def, ind.params);
-    const colors = def.colors.map((c, i) => ind.colors?.[i] || c);
+    const colors = def.colors.map((c, i) => themeColor(ind.colors?.[i] || c));
     return { uid: ind.uid, pane: def.pane, levels: def.levels, plots: def.compute(bars, params, colors) };
   }
   const custom = state.customLib.find((x) => x.id === ind.ref);
@@ -118,7 +160,7 @@ async function computeOne(ind, bars) {
   const res = await sandbox.run(custom.code, bars, { ...parseInputs(custom.inputs), ...ind.params });
   if (!res.ok) throw new Error(res.error);
   const palette = ['#00f0ff', '#ff2a6d', '#05ffa1', '#f9f871', '#b967ff', '#ffb800', '#ff6ec7', '#ffffff'];
-  return { uid: ind.uid, pane: custom.pane, plots: res.plots.map((p, i) => ({ ...p, color: p.color || ind.colors?.[i] || palette[i % palette.length] })) };
+  return { uid: ind.uid, pane: custom.pane, plots: res.plots.map((p, i) => ({ ...p, color: themeColor(p.color || ind.colors?.[i] || palette[i % palette.length]) })) };
 }
 
 let computing = false;
@@ -199,6 +241,7 @@ function setSymbol(raw) {
   save();
   $('#ticker-input').value = s;
   renderWatchlist();
+  if (!quotes[s]) refreshQuotes();
   sendWs({ type: 'subscribe', symbol: s });
   loadBars();
 }
@@ -299,13 +342,38 @@ function renderTimeframes() {
   }, tf.replace('Min', 'm').replace('Hour', 'H').replace('Day', 'D'))));
 }
 
+// Latest daily quote per watchlist symbol: { SYM: { last, chgPct } }
+const quotes = {};
+
+/** Watchlist rows: Symbol | Last | Chg% (click a row to open its chart). */
 function renderWatchlist() {
-  $('#watchlist').replaceChildren(...state.watchlist.map((s) => h('li', {},
-    h('button', { class: `wl-item ${s === state.symbol ? 'active' : ''}`, onclick: () => setSymbol(s) }, s),
-    h('button', {
-      class: 'wl-x', title: `Remove ${s}`,
-      onclick: () => { state.watchlist = state.watchlist.filter((x) => x !== s); save(); renderWatchlist(); },
-    }, '×'))));
+  const fmtPct = (q) => (q ? `${q.chgPct >= 0 ? '+' : ''}${q.chgPct.toFixed(2)}%` : '');
+  $('#watchlist').replaceChildren(
+    h('li', { class: 'wl-head' }, h('span', {}, 'Symbol'), h('span', { class: 'wl-last' }, 'Last'), h('span', {}, 'Chg%'), h('span', {})),
+    ...state.watchlist.map((s) => {
+      const q = quotes[s];
+      return h('li', { class: `wl-row ${s === state.symbol ? 'active' : ''}` },
+        h('button', { class: 'wl-item', onclick: () => setSymbol(s), title: `Open ${s}` }, s),
+        h('span', { class: 'wl-last' }, q ? q.last.toFixed(2) : '…'),
+        h('span', { class: `wl-chg ${q ? (q.chgPct >= 0 ? 'up' : 'down') : ''}` }, fmtPct(q)),
+        h('button', {
+          class: 'wl-x', title: `Remove ${s}`,
+          onclick: () => { state.watchlist = state.watchlist.filter((x) => x !== s); save(); renderWatchlist(); },
+        }, '×'));
+    }));
+}
+
+/** Refresh watchlist prices from daily candles (last close vs previous close). */
+async function refreshQuotes() {
+  await Promise.all(state.watchlist.map(async (s) => {
+    try {
+      const { bars } = await api(`/api/bars?symbol=${encodeURIComponent(s)}&timeframe=1Day`);
+      const last = bars[bars.length - 1];
+      const prev = bars[bars.length - 2];
+      if (last && prev) quotes[s] = { last: last.close, chgPct: ((last.close - prev.close) / prev.close) * 100 };
+    } catch { /* leave the row blank if a symbol fails */ }
+  }));
+  renderWatchlist();
 }
 
 // ------------------------------------------------ rendering: legend ---------
@@ -400,7 +468,7 @@ function openSettings(ind) {
         h('input', { class: 'input', type: 'number', name: p.key, value: ind.params[p.key] ?? p.default, min: p.min, max: p.max, step: p.step })));
     }
     def.colors.forEach((c, i) => fields.push(h('label', { class: 'field' }, `Colour ${i + 1}`,
-      h('input', { type: 'color', name: `color${i}`, value: ind.colors?.[i] || c }))));
+      h('input', { type: 'color', name: `color${i}`, value: themeColor(ind.colors?.[i] || c) }))));
   } else {
     const custom = state.customLib.find((x) => x.id === ind.ref);
     const inputs = { ...parseInputs(custom?.inputs), ...ind.params };
@@ -517,10 +585,17 @@ async function boot() {
   $('#btn-indicators').addEventListener('click', openIndicatorPicker);
   $('#btn-custom').addEventListener('click', () => openCustomEditor());
   $('#modal-close').addEventListener('click', closeModal);
-  $('#btn-theme').addEventListener('click', () => setTheme(currentTheme() === 'light' ? 'dark' : 'light'));
-  setTheme(currentTheme());
+  $('#btn-theme').addEventListener('click', () => applyAppearance({ mode: currentMode() === 'light' ? 'dark' : 'light' }));
+  $('#btn-settings').addEventListener('click', openAppSettings);
+  // In "auto" mode, follow the computer if it switches light/dark while the app is open.
+  window.matchMedia?.('(prefers-color-scheme: light)').addEventListener?.('change', () => {
+    if (storage.get('mknb.theme', 'auto') === 'auto') applyAppearance();
+  });
+  applyAppearance();
   renderTimeframes();
   renderWatchlist();
+  refreshQuotes();
+  setInterval(refreshQuotes, 60000); // update watchlist prices every minute
   initTabs();
 
   try {

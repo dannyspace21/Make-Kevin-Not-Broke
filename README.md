@@ -1,9 +1,9 @@
 # MAKE KEVIN NOT BROKE
 
-> A cyberpunk, TradingView-style stock dashboard with live **Alpaca** market data,
+> A TradingView-style stock dashboard (with a cyberpunk name and an optional full cyberpunk theme) with live **Alpaca** market data,
 > **unlimited + custom indicators**, a **ransomware vs. SEC Form 8-K watchdog**, and an
 > optional **multi-AI co-pilot** (Claude, ChatGPT, Gemini, Grok, Mistral, local Ollama...), plus
-> **night and light mode**. Runs in Docker.
+> **two themes (Pro / Cyberpunk)** with **dark and light mode**. Runs in Docker.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -41,7 +41,9 @@
 | **Disclosed-in-time indicator** | Every case shows **✔ DISCLOSED ≤ 4 DAYS**, **✖ NOT DISCLOSED IN 4 DAYS** or **⏳ PENDING**, with a 4-box countdown bar. |
 | **Alerts** | In-app pop-ups, an Alerts tab and an optional Discord/Slack webhook. |
 | **Multi-AI co-pilot (optional)** | Works with **any number of AIs**: Claude, ChatGPT, Gemini and any OpenAI-compatible service (Grok, Mistral, DeepSeek, Groq, OpenRouter, local Ollama...). Pick one, or **ask every AI at once** and compare. **Simulate** shows what each AI *would* do. Each AI gets its own **paper wallet**, and a **leaderboard** shows which would have made the most money. |
-| **Night / light mode** | Neon cyberpunk night mode and a clean light mode. Toggle with the ☀/☾ button. It follows your computer's setting until you choose, then remembers your choice. |
+| **Two themes** | **Pro** (default): a clean, professional look modelled on TradingView, with flat panels, blue accent, teal/red candles and a watchlist table. Only the app *name* keeps its cyberpunk style. **Cyberpunk**: full neon, scanlines and glitch logo. Switch in **⚙ Settings**. |
+| **Dark / light mode** | Works with both themes. Choose Dark, Light or Auto (follow your computer) in ⚙ Settings, or flip quickly with the ☀/☾ button. Your choice is remembered. |
+| **Watchlist with prices** | Last price and daily % change for each symbol, refreshed every minute. Click a row to open its chart. |
 | **Demo mode** | Works with no keys at all, using simulated prices and fictional cases. |
 
 ## Screenshots
@@ -49,7 +51,8 @@
 | | |
 |---|---|
 | **Indicator picker** - click to add as many as you want ![Indicator picker](docs/screenshots/indicator-picker.png) | **Custom indicator editor** - write, test and add ![Custom indicator editor](docs/screenshots/custom-indicator-editor.png) |
-| **Ask every AI at once** *(sample responses, mocked for the screenshot)* ![AI co-pilot](docs/screenshots/ai-copilot.png) | **Light mode** ![Light mode](docs/screenshots/light-mode.png) |
+| **Pro theme - light mode** ![Light mode](docs/screenshots/light-mode.png) | **Cyberpunk theme** (optional) ![Cyberpunk theme](docs/screenshots/cyberpunk-theme.png) |
+| **⚙ Settings** - pick theme and mode ![Settings](docs/screenshots/settings.png) | **Ask every AI at once** *(sample responses, mocked for the screenshot)* ![AI co-pilot](docs/screenshots/ai-copilot.png) |
 | **Alerts tab** ![Alerts](docs/screenshots/alerts.png) | |
 
 **Ticker switch keeps all indicators** (clicking a watchdog case loads its chart):
@@ -264,7 +267,8 @@ use. The server only accepts names from its own list. AI calls are rate-limited 
 │   └── util/                # business-day math, safe fetch, JSON file store, logger, validation
 ├── public/                  # ---- BROWSER ----
 │   ├── index.html           # page layout
-│   ├── css/style.css        # cyberpunk theme (night + light mode colours)
+│   ├── css/style.css        # base layout + CYBERPUNK theme (dark + light colours)
+│   ├── css/theme-pro.css    # PRO theme (default, TradingView-style) overrides
 │   └── js/
 │       ├── app.js           # main controller: state, ticker switch, indicators, live ticks
 │       ├── chart.js         # Lightweight Charts wrapper (panes, series)
@@ -272,7 +276,7 @@ use. The server only accepts names from its own list. AI calls are rate-limited 
 │       ├── indicator-worker.js  # sandbox for custom indicator code
 │       ├── ransom.js        # watchdog + alerts panels
 │       ├── ai.js            # multi-AI panel, compare mode, per-AI paper wallets + leaderboard
-│       ├── theme-init.js    # picks light/night mode before the page draws
+│       ├── theme-init.js    # applies theme + light/dark before the page draws
 │       └── ui.js            # safe DOM builder, toasts, modals, storage
 ├── test/                    # unit tests (npm test)
 ├── scripts/screenshots.mjs  # regenerates README pictures

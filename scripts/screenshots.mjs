@@ -29,6 +29,7 @@ await page.addInitScript(() => {
     localStorage.setItem('mknb.symbol', JSON.stringify('NVDA'));
     localStorage.setItem('mknb.timeframe', JSON.stringify('15Min'));
     localStorage.setItem('mknb.theme', JSON.stringify('dark'));
+    localStorage.setItem('mknb.style', JSON.stringify('pro'));
     sessionStorage.setItem('seeded', '1');
   }
 });
@@ -60,7 +61,11 @@ await page.route('**/api/ai/simulate', async (route) => {
   } });
 });
 
-const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
+// Remove pop-up toasts first so they don't cover the picture.
+const shot = async (name) => {
+  await page.evaluate(() => document.querySelectorAll('.toast').forEach((t) => t.remove()));
+  await page.screenshot({ path: `${OUT}/${name}.png` });
+};
 
 await page.goto(BASE);
 await page.waitForTimeout(3500);
@@ -102,11 +107,23 @@ await page.locator('.case').first().click();
 await page.waitForTimeout(2000);
 await shot('ticker-switch-keeps-indicators');
 
-// 7. Light mode
+// 7. Light mode (Pro theme)
 await page.click('#btn-theme');
 await page.waitForTimeout(800);
 await shot('light-mode');
-await page.click('#btn-theme'); // back to night mode for next time
+await page.click('#btn-theme'); // back to dark
+
+// 8. Settings dialog, then switch to the Cyberpunk theme
+await page.click('#btn-settings');
+await page.waitForTimeout(300);
+await shot('settings');
+await page.locator('.choice:has(input[value="cyber"])').click();
+await page.waitForTimeout(300);
+await page.getByText('Done').click();
+await page.waitForTimeout(1000);
+await shot('cyberpunk-theme');
+// leave the default theme selected for next time
+await page.evaluate(() => localStorage.setItem('mknb.style', JSON.stringify('pro')));
 
 await browser.close();
 console.log(`Screenshots written to ${OUT}/`);

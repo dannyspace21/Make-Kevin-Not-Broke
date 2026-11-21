@@ -11,14 +11,29 @@
 const LWC = window.LightweightCharts; // loaded by <script> in index.html
 const { createChart, CandlestickSeries, HistogramSeries, LineSeries, CrosshairMode, LineStyle } = LWC;
 
-// Chart colours for NIGHT (neon cyberpunk) and LIGHT mode - matches style.css
+// Chart colours for each STYLE (pro / cyber) and MODE (dark / light).
+// Must match style.css (cyber) and theme-pro.css (pro).
+const PRO_FONT = "-apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif";
+const CYBER_FONT = "'Share Tech Mono', monospace";
 export const THEMES = {
-  dark: {
+  'pro-dark': {
+    up: '#089981', down: '#f23645', grid: 'rgba(42, 46, 57, 0.6)', text: '#b2b5be', bg: '#131722',
+    border: '#2a2e39', separator: '#2a2e39', font: PRO_FONT,
+    volUp: 'rgba(8,153,129,0.45)', volDown: 'rgba(242,54,69,0.45)', level: 'rgba(120,123,134,0.6)',
+  },
+  'pro-light': {
+    up: '#089981', down: '#f23645', grid: 'rgba(42, 46, 57, 0.06)', text: '#131722', bg: '#ffffff',
+    border: '#e0e3eb', separator: '#e0e3eb', font: PRO_FONT,
+    volUp: 'rgba(8,153,129,0.35)', volDown: 'rgba(242,54,69,0.35)', level: 'rgba(120,123,134,0.6)',
+  },
+  'cyber-dark': {
+    font: CYBER_FONT,
     up: '#05ffa1', down: '#ff2a6d', grid: 'rgba(0, 240, 255, 0.06)', text: '#9ad8e8', bg: '#07060f',
     border: 'rgba(0, 240, 255, 0.25)', separator: 'rgba(255, 42, 109, 0.35)',
     volUp: 'rgba(5,255,161,0.25)', volDown: 'rgba(255,42,109,0.25)', level: 'rgba(255,255,255,0.25)',
   },
-  light: {
+  'cyber-light': {
+    font: CYBER_FONT,
     up: '#00a86b', down: '#e0245e', grid: 'rgba(20, 18, 37, 0.06)', text: '#3b4660', bg: '#ffffff',
     border: 'rgba(0, 127, 153, 0.3)', separator: 'rgba(209, 0, 75, 0.25)',
     volUp: 'rgba(0,168,107,0.25)', volDown: 'rgba(224,36,94,0.25)', level: 'rgba(20,18,37,0.3)',
@@ -28,12 +43,13 @@ export const THEMES = {
 export class ChartManager {
   /**
    * @param {HTMLElement} container the <div> the chart lives in
-   * @param {'dark'|'light'} theme
+   * @param {'pro'|'cyber'} style
+   * @param {'dark'|'light'} mode
    */
-  constructor(container, theme = 'dark') {
+  constructor(container, style = 'pro', mode = 'dark') {
     this.chart = createChart(container, {
       autoSize: true, // follows the container's size automatically
-      layout: { fontFamily: "'Share Tech Mono', monospace", panes: { enableResize: true } },
+      layout: { panes: { enableResize: true } },
       crosshair: { mode: CrosshairMode.Normal },
       timeScale: { timeVisible: true, secondsVisible: false, rightOffset: 6 },
       localization: { priceFormatter: (p) => (Math.abs(p) >= 1e6 ? `${(p / 1e6).toFixed(2)}M` : p.toFixed(2)) },
@@ -47,15 +63,15 @@ export class ChartManager {
 
     this.indicatorSeries = new Map(); // indicator uid -> { series: [], levels: [] }
     this.bars = [];
-    this.applyTheme(theme);
+    this.applyTheme(style, mode);
   }
 
-  /** Switch between night ('dark') and light colours without reloading data. */
-  applyTheme(theme) {
-    const t = THEMES[theme] ?? THEMES.dark;
+  /** Switch style (pro/cyber) and mode (dark/light) without reloading data. */
+  applyTheme(style, mode) {
+    const t = THEMES[`${style}-${mode}`] ?? THEMES['pro-dark'];
     this.t = t;
     this.chart.applyOptions({
-      layout: { background: { color: t.bg }, textColor: t.text, panes: { separatorColor: t.separator, separatorHoverColor: t.border } },
+      layout: { background: { color: t.bg }, textColor: t.text, fontFamily: t.font, panes: { separatorColor: t.separator, separatorHoverColor: t.border } },
       grid: { vertLines: { color: t.grid }, horzLines: { color: t.grid } },
       rightPriceScale: { borderColor: t.border },
       timeScale: { borderColor: t.border },

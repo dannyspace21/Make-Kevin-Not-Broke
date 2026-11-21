@@ -41,7 +41,15 @@ export function getDemoBars(symbol, timeframe, limit = 500) {
     bars.push({ time: now - i * step, open: +open.toFixed(2), high: +high.toFixed(2), low: +low.toFixed(2), close: +close.toFixed(2), volume: Math.round(1e4 + rand() * 9e4 * (step / 60)) });
     price = close;
   }
-  lastPrice.set(symbol, price);
+  // Rescale so the newest close equals the symbol's "current" price - that way
+  // every timeframe (and the watchlist) agrees on what the stock costs now.
+  const anchor = lastPrice.get(symbol) ?? 20 + (Math.abs(seedOf(symbol)) % 480);
+  const k = anchor / price;
+  for (const b of bars) {
+    b.open = +(b.open * k).toFixed(2); b.high = +(b.high * k).toFixed(2);
+    b.low = +(b.low * k).toFixed(2); b.close = +(b.close * k).toFixed(2);
+  }
+  lastPrice.set(symbol, anchor);
   return bars;
 }
 
