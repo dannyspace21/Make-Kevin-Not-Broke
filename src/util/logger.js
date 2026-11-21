@@ -8,7 +8,7 @@ import { config } from '../config.js';
 
 // Collect every secret we know about (skip empty ones).
 const secrets = [
-  config.alpaca.keyId, config.alpaca.secretKey, config.ai.anthropicKey, config.ai.openaiKey,
+  config.alpaca.keyId, config.alpaca.secretKey, ...config.ai.providers.map((p) => p.apiKey),
   config.ransom.ransomDbKey, config.ransom.darkwebIqKey, config.appPassword,
 ].filter((s) => s && s.length >= 6);
 

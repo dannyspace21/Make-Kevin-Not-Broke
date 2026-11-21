@@ -13,6 +13,8 @@
   <title>Make Kevin Not Broke</title>
   <meta name="description" content="Cyberpunk trading dashboard: live Alpaca charts, unlimited and custom indicators, ransomware SEC 8-K watchdog, AI co-pilot.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <!-- Sets light/dark theme BEFORE the page paints (no white flash). External file because our CSP bans inline scripts. -->
+  <script src="/js/theme-init.js"></script>
   <link rel="stylesheet" href="/css/style.css">
   <!-- TradingView Lightweight Charts (Apache-2.0), served locally from node_modules -->
   <script src="/vendor/lightweight-charts/lightweight-charts.standalone.production.js" defer></script>
@@ -45,6 +47,7 @@
     </div>
 
     <div class="pills">
+      <button id="btn-theme" class="btn btn-small theme-toggle" title="Switch light / night mode" aria-label="Switch light / night mode">☀ LIGHT</button>
       <span id="pill-mode" class="pill">…</span>
       <span id="pill-stream" class="pill">…</span>
       <span id="pill-ai" class="pill">…</span>
@@ -92,15 +95,22 @@
         <ul id="alert-list" class="alert-list"></ul>
       </section>
 
-      <!-- AI co-pilot -->
+      <!-- Multi-AI co-pilot -->
       <section id="panel-ai" class="tab-panel">
-        <p id="ai-disabled" class="notice" hidden>AI is off. Add <code>ANTHROPIC_API_KEY</code> (or an OpenAI-compatible key) to <code>.env</code> and restart.</p>
+        <p id="ai-disabled" class="notice" hidden>AI is off. Add at least one AI key to <code>.env</code>
+          (Claude, ChatGPT, Gemini, Grok, Mistral, Ollama...) and restart. See the README.</p>
+        <label for="ai-provider" class="panel-title">AI MODEL</label>
+        <div class="row">
+          <select id="ai-provider" class="input" aria-label="AI provider"></select>
+        </div>
+        <label id="ai-all-label" class="auto" hidden><input id="ai-all" type="checkbox"> Ask every AI at once (compare answers)</label>
+
         <form id="ai-ask-form" class="ai-form">
           <label for="ai-question" class="panel-title">ASK THE AI</label>
           <textarea id="ai-question" class="input" rows="3" maxlength="2000" placeholder="e.g. Is RSI divergence forming? Should I worry about the 8-K clock?"></textarea>
           <button class="btn" type="submit">Ask</button>
         </form>
-        <pre id="ai-answer" class="ai-answer"></pre>
+        <div id="ai-answers" class="ai-answers"></div>
 
         <h3 class="panel-title">WHAT WOULD THE AI DO?</h3>
         <textarea id="ai-scenario" class="input" rows="2" maxlength="2000" placeholder="Optional scenario: e.g. 'Assume the company files a late 8-K tomorrow'"></textarea>
@@ -111,10 +121,10 @@
         </div>
         <div id="ai-decision" class="ai-decision"></div>
 
-        <h3 class="panel-title">PAPER WALLET <small>(simulated - no real orders)</small></h3>
+        <h3 class="panel-title">AI LEADERBOARD <small>(paper wallets - no real orders)</small></h3>
         <div id="wallet-summary" class="wallet-summary"></div>
         <ul id="wallet-log" class="wallet-log"></ul>
-        <button id="btn-wallet-reset" class="btn btn-small">Reset wallet</button>
+        <button id="btn-wallet-reset" class="btn btn-small">Reset wallets</button>
       </section>
     </aside>
   </main>

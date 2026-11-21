@@ -1,5 +1,5 @@
 // =============================================================================
-// ai/copilot.js  -  OPTIONAL AI co-pilot ("Ask the AI" + "What would AI do?").
+// ai/copilot.js  -  OPTIONAL multi-AI co-pilot ("Ask" + "What would AI do?").
 // -----------------------------------------------------------------------------
 // Two features:
 //   advise()   - free-form chat: you ask a question about the chart, it answers
@@ -7,10 +7,12 @@
 //                a structured JSON format. Nothing is ever sent to a broker;
 //                the browser only records it in a SIMULATED paper wallet.
 //
-// Providers (pick with AI_PROVIDER in .env):
-//   anthropic - Claude via the official Anthropic SDK (ANTHROPIC_API_KEY)
-//   openai    - any OpenAI-compatible /chat/completions endpoint
-//               (OpenAI, a local Ollama server, LM Studio...) via OPENAI_* vars
+// Not locked to one vendor: every provider configured in .env (see config.js)
+// can be picked in the UI, or asked side-by-side. Three "adapters" cover them:
+//   anthropic          - Claude via the official Anthropic SDK
+//   gemini             - Google Gemini via its REST API
+//   openai-compatible  - ChatGPT and everything that copies OpenAI's API
+//                        (Grok, Mistral, DeepSeek, Groq, OpenRouter, Ollama...)
 //
 // Keys stay on the server. The browser only sends market numbers + question.
 // =============================================================================
@@ -19,9 +21,12 @@ import { config } from '../config.js';
 import { fetchJson } from '../util/http.js';
 import { log } from '../util/logger.js';
 
-// Created lazily so the app starts fine without an AI key.
-let anthropic = null;
-const getAnthropic = () => (anthropic ??= new Anthropic({ apiKey: config.ai.anthropicKey, maxRetries: 2, timeout: 120000 }));
+// One Anthropic client per key, created lazily so the app starts fine without one.
+const anthropicClients = new Map();
+const getAnthropic = (apiKey) => {
+  if (!anthropicClients.has(apiKey)) anthropicClients.set(apiKey, new Anthropic({ apiKey, maxRetries: 2, timeout: 120000 }));
+  return anthropicClients.get(apiKey);
+};
 
 // ---- System prompts ---------------------------------------------------------
 const BASE_SYSTEM = `You are the trading co-pilot inside "Make Kevin Not Broke", a stock-charting dashboard.
@@ -54,14 +59,18 @@ const DECISION_SCHEMA = {
   },
 };
 
-/** Status for the UI (never includes keys). */
+/** Status for the UI: list of providers (never includes keys or URLs). */
 export function aiStatus() {
-  const p = config.ai.provider;
   return {
-    enabled: config.ai.configured && p !== 'none',
-    provider: p,
-    model: p === 'anthropic' ? config.ai.anthropicModel : p === 'openai' ? config.ai.openaiModel : null,
+    enabled: config.ai.configured,
+    providers: config.ai.providers.map((p) => ({ id: p.id, label: p.label, model: p.model || '(model not set)' })),
+    defaultProvider: config.ai.defaultProvider,
   };
+}
+
+/** Find a configured provider by id (the browser can only pick from this list). */
+export function getProvider(id) {
+  return config.ai.providers.find((p) => p.id === id) ?? config.ai.providers.find((p) => p.id === config.ai.defaultProvider) ?? null;
 }
 
 /** Builds the <market_data> block from what the browser sent (already validated). */
@@ -69,11 +78,11 @@ function renderContext(ctx) {
   return `<market_data>\n${JSON.stringify(ctx, null, 1)}\n</market_data>`;
 }
 
-// ---- Provider: Anthropic (Claude) -------------------------------------------
-async function callAnthropic({ system, user, schema, effort }) {
-  const client = getAnthropic();
+// ---- Adapter 1: Anthropic (Claude) -------------------------------------------
+async function callAnthropic(p, { system, user, schema, effort }) {
+  const client = getAnthropic(p.apiKey);
   const params = {
-    model: config.ai.anthropicModel,
+    model: p.model,
     max_tokens: 16000,
     system,
     messages: [{ role: 'user', content: user }],
@@ -82,64 +91,93 @@ async function callAnthropic({ system, user, schema, effort }) {
   };
   // Server-side fallback: if the primary model declines, the API retries on a
   // suitable fallback model inside the same call (only for models that support it).
-  const supportsFallback = /^claude-(opus-5|fable-5|sonnet-5-5)/.test(config.ai.anthropicModel);
+  const supportsFallback = /^claude-(opus-5|fable-5|sonnet-5-5)/.test(p.model);
   const res = supportsFallback
     ? await client.beta.messages.create({ ...params, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' })
     : await client.messages.create(params);
 
-  if (res.stop_reason === 'refusal') {
-    throw new Error('The AI declined this request. Try rephrasing your question.');
-  }
+  if (res.stop_reason === 'refusal') throw new Error('The AI declined this request. Try rephrasing your question.');
   // Join all text blocks (thinking blocks are skipped).
   return res.content.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
 }
 
-// ---- Provider: OpenAI-compatible --------------------------------------------
-async function callOpenAiCompatible({ system, user, schema }) {
-  if (!config.ai.openaiModel) throw new Error('Set OPENAI_MODEL in .env for the openai provider.');
-  const body = {
-    model: config.ai.openaiModel,
-    messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
-    ...(schema ? { response_format: { type: 'json_object' } } : {}),
-  };
-  const json = await fetchJson(`${config.ai.openaiBaseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    timeoutMs: 120000,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.ai.openaiKey}` },
-    body: JSON.stringify(body),
-  });
+// ---- Adapter 2: OpenAI-compatible (ChatGPT, Grok, Mistral, Ollama, ...) ------
+async function callOpenAiCompatible(p, { system, user, schema }) {
+  const url = `${p.baseUrl.replace(/\/$/, '')}/chat/completions`;
+  const headers = { 'Content-Type': 'application/json' };
+  if (p.apiKey) headers.Authorization = `Bearer ${p.apiKey}`;
+  const body = { model: p.model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] };
+  const post = (b) => fetchJson(url, { method: 'POST', timeoutMs: 180000, headers, body: JSON.stringify(b) });
+  let json;
+  try {
+    // Ask for JSON mode when we need a decision...
+    json = await post(schema ? { ...body, response_format: { type: 'json_object' } } : body);
+  } catch (err) {
+    // ...but some compatible servers don't support JSON mode -> retry without it.
+    if (schema && err.status === 400) json = await post(body);
+    else throw err;
+  }
   return String(json?.choices?.[0]?.message?.content ?? '').trim();
 }
 
-/** Route to whichever provider is configured. */
-async function complete(opts) {
-  const p = config.ai.provider;
-  if (!aiStatus().enabled) throw new Error('AI is not configured. Add ANTHROPIC_API_KEY (or OPENAI_API_KEY) to .env.');
+// ---- Adapter 3: Google Gemini --------------------------------------------------
+async function callGemini(p, { system, user, schema }) {
+  // The key goes in a header (not the URL) so it never ends up in logs.
+  const url = `${p.baseUrl}/models/${encodeURIComponent(p.model)}:generateContent`;
+  const json = await fetchJson(url, {
+    method: 'POST',
+    timeoutMs: 180000,
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': p.apiKey },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: 'user', parts: [{ text: user }] }],
+      generationConfig: schema ? { responseMimeType: 'application/json' } : {},
+    }),
+  });
+  if (json?.promptFeedback?.blockReason) throw new Error('The AI declined this request. Try rephrasing your question.');
+  const parts = json?.candidates?.[0]?.content?.parts ?? [];
+  return parts.map((x) => x.text ?? '').join('').trim();
+}
+
+const ENV_PREFIX = { anthropic: 'ANTHROPIC', openai: 'OPENAI', gemini: 'GEMINI' };
+
+/** Route to the chosen provider and turn errors into friendly messages. */
+async function complete(providerId, opts) {
+  const p = getProvider(providerId);
+  if (!p) throw new Error('No AI is configured. Add at least one AI key to .env (see README).');
+  if (!p.model) throw new Error(`Set ${ENV_PREFIX[p.id] ?? `CUSTOM_AI_${p.id.slice(-1)}`}_MODEL in .env for ${p.label}.`);
   try {
-    if (p === 'anthropic') return await callAnthropic(opts);
-    if (p === 'openai') return await callOpenAiCompatible(opts);
-    throw new Error(`Unknown AI_PROVIDER "${p}"`);
+    let text;
+    if (p.kind === 'anthropic') text = await callAnthropic(p, opts);
+    else if (p.kind === 'gemini') text = await callGemini(p, opts);
+    else text = await callOpenAiCompatible(p, opts);
+    if (!text) throw new Error('The AI returned an empty answer.');
+    return { text, provider: { id: p.id, label: p.label, model: p.model } };
   } catch (err) {
     // Log the detail server-side, return a friendly message to the browser.
-    log.error('ai', err.message);
-    if (err instanceof Anthropic.AuthenticationError) throw new Error('AI key was rejected. Check ANTHROPIC_API_KEY.');
-    if (err instanceof Anthropic.RateLimitError) throw new Error('AI rate limit hit. Wait a minute and try again.');
-    if (err instanceof Anthropic.APIConnectionError) throw new Error('Could not reach the AI service.');
-    throw new Error(err.message.startsWith('The AI') || err.message.startsWith('Set ') ? err.message : 'AI request failed (see server log).');
+    log.error('ai', `${p.id}: ${err.message}`);
+    const status = err.status;
+    if (err instanceof Anthropic.AuthenticationError || status === 401 || status === 403) throw new Error(`${p.label}: API key was rejected.`);
+    if (err instanceof Anthropic.RateLimitError || status === 429) throw new Error(`${p.label}: rate limit or quota hit. Wait and try again.`);
+    if (err instanceof Anthropic.NotFoundError || status === 404) throw new Error(`${p.label}: model "${p.model}" not found. Check the model name in .env.`);
+    if (err instanceof Anthropic.APIConnectionError || err.name === 'TimeoutError' || /fetch failed/.test(err.message)) throw new Error(`${p.label}: could not reach the service.`);
+    if (/^The AI/.test(err.message)) throw new Error(`${p.label}: ${err.message}`);
+    throw new Error(`${p.label}: request failed (see server log).`);
   }
 }
 
-/** Free-form question about the current chart. Returns markdown-ish text. */
-export async function advise({ question, context }) {
+/** Free-form question about the current chart. Returns { answer, provider }. */
+export async function advise({ providerId, question, context }) {
   const user = `${renderContext(context)}\n\nQuestion from the trader:\n${question || 'Give me your read of this chart and any ransomware/8-K risk.'}`;
-  return complete({ system: BASE_SYSTEM, user, effort: 'medium' });
+  const { text, provider } = await complete(providerId, { system: BASE_SYSTEM, user, effort: 'medium' });
+  return { answer: text, provider };
 }
 
-/** Ask for a structured, simulated trading decision. */
-export async function simulate({ scenario, context }) {
-  const user = `${renderContext(context)}\n\nScenario / extra instructions from the trader (may be empty):\n${scenario || '(none)'}\n\nReturn your decision as JSON with keys: ${DECISION_SCHEMA.required.join(', ')}.`;
-  const text = await complete({ system: SIM_SYSTEM, user, schema: DECISION_SCHEMA, effort: 'medium' });
-  return sanitizeDecision(parseJsonLoose(text));
+/** Ask for a structured, simulated trading decision. Returns { decision, provider }. */
+export async function simulate({ providerId, scenario, context }) {
+  const user = `${renderContext(context)}\n\nScenario / extra instructions from the trader (may be empty):\n${scenario || '(none)'}\n\nReturn ONLY a JSON object with keys: ${DECISION_SCHEMA.required.join(', ')}.`;
+  const { text, provider } = await complete(providerId, { system: SIM_SYSTEM, user, schema: DECISION_SCHEMA, effort: 'medium' });
+  return { decision: sanitizeDecision(parseJsonLoose(text)), provider };
 }
 
 /** Extract the first {...} object from a reply (OpenAI-compatible models may add prose). */

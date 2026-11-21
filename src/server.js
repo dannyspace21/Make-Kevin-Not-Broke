@@ -60,7 +60,7 @@ app.use(helmet({
 
 // ---- 2. Rate limiting -------------------------------------------------------
 app.use('/api/', rateLimit({ windowMs: 60000, limit: 120, standardHeaders: 'draft-8', legacyHeaders: false }));
-const aiLimiter = rateLimit({ windowMs: 60000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false,
+const aiLimiter = rateLimit({ windowMs: 60000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false,
   message: { error: 'Too many AI requests - wait a minute.' } });
 
 // ---- 3. Optional password (HTTP Basic Auth) ---------------------------------
@@ -189,8 +189,9 @@ function buildAiContext(body) {
 
 app.post('/api/ai/advise', aiLimiter, async (req, res) => {
   try {
-    const answer = await advise({ question: cleanText(req.body?.question, 2000), context: buildAiContext(req.body) });
-    res.json({ answer });
+    // `provider` = which configured AI to use (only ids from config are accepted)
+    const result = await advise({ providerId: cleanText(req.body?.provider, 20), question: cleanText(req.body?.question, 2000), context: buildAiContext(req.body) });
+    res.json(result);
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
@@ -198,8 +199,8 @@ app.post('/api/ai/advise', aiLimiter, async (req, res) => {
 
 app.post('/api/ai/simulate', aiLimiter, async (req, res) => {
   try {
-    const decision = await simulate({ scenario: cleanText(req.body?.scenario, 2000), context: buildAiContext(req.body) });
-    res.json({ decision });
+    const result = await simulate({ providerId: cleanText(req.body?.provider, 20), scenario: cleanText(req.body?.scenario, 2000), context: buildAiContext(req.body) });
+    res.json(result);
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
@@ -302,7 +303,7 @@ heartbeat.unref();
 server.listen(config.port, config.host, async () => {
   log.info('server', `Make Kevin Not Broke listening on http://${config.host}:${config.port}`);
   log.info('server', `market data: ${market.mode.toUpperCase()}${market.mode === 'demo' ? ' (add Alpaca keys to .env for live data)' : ` (feed: ${config.alpaca.feed})`}`);
-  log.info('server', `AI co-pilot: ${aiStatus().enabled ? aiStatus().provider : 'disabled'}`);
+  log.info('server', `AI co-pilot: ${aiStatus().enabled ? aiStatus().providers.map((p) => p.label).join(', ') : 'disabled'}`);
   if (!config.appPassword) log.warn('server', 'APP_PASSWORD is not set - anyone who can reach this port can use the app.');
   await ransomMonitor.start();
 });

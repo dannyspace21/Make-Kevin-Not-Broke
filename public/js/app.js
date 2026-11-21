@@ -44,7 +44,19 @@ const save = () => {
   storage.set('mknb.watchlist', state.watchlist);
 };
 
-const chart = new ChartManager($('#chart'));
+// ------------------------------------------------ light / night mode --------
+// theme-init.js already set <html data-theme> before the page drew.
+const currentTheme = () => (document.documentElement.dataset.theme === 'light' ? 'light' : 'dark');
+const chart = new ChartManager($('#chart'), currentTheme());
+
+/** Flip between light and night mode, remember the choice, recolour the chart. */
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  storage.set('mknb.theme', theme);
+  chart.applyTheme(theme);
+  if (state.bars.length) recomputeIndicators(true); // redraw guide lines (RSI 30/70...) in the new colours
+  $('#btn-theme').textContent = theme === 'light' ? '☾ NIGHT' : '☀ LIGHT'; // button shows the OTHER mode
+}
 
 // ------------------------------------------------ custom-code sandbox -------
 // One Web Worker runs custom indicator code. If a script takes longer than
@@ -505,6 +517,8 @@ async function boot() {
   $('#btn-indicators').addEventListener('click', openIndicatorPicker);
   $('#btn-custom').addEventListener('click', () => openCustomEditor());
   $('#modal-close').addEventListener('click', closeModal);
+  $('#btn-theme').addEventListener('click', () => setTheme(currentTheme() === 'light' ? 'dark' : 'light'));
+  setTheme(currentTheme());
   renderTimeframes();
   renderWatchlist();
   initTabs();
@@ -512,7 +526,8 @@ async function boot() {
   try {
     state.status = await api('/api/status');
     setPill('#pill-mode', state.status.marketMode === 'live' ? `LIVE · ${state.status.feed.toUpperCase()}` : 'DEMO DATA', state.status.marketMode === 'live' ? 'ok' : 'warn');
-    setPill('#pill-ai', state.status.ai.enabled ? `AI · ${state.status.ai.provider}` : 'AI OFF', state.status.ai.enabled ? 'ok' : 'off');
+    const n = state.status.ai.providers.length;
+    setPill('#pill-ai', n ? `AI · ${n === 1 ? state.status.ai.providers[0].label : `${n} MODELS`}` : 'AI OFF', n ? 'ok' : 'off');
     if (state.status.marketMode === 'demo') toast('DEMO mode: prices are simulated. Add your Alpaca keys to .env for live data.', 'warn', 9000);
   } catch (err) {
     toast(err.message, 'warn');
@@ -528,7 +543,7 @@ async function boot() {
     aiEnabled: () => Boolean(state.status.ai?.enabled),
   };
   initRansomPanel(appApi);
-  initAiPanel(appApi);
+  initAiPanel(appApi, state.status.ai);
 
   connectSocket();
   await loadBars();

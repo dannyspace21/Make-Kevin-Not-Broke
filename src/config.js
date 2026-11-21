@@ -35,9 +35,40 @@ const bool = (name, fallback = false) => {
 const alpacaKey = str('ALPACA_KEY_ID');
 const alpacaSecret = str('ALPACA_SECRET_KEY');
 
-// ---- AI provider -------------------------------------------------------------
-const anthropicKey = str('ANTHROPIC_API_KEY');
-const openaiKey = str('OPENAI_API_KEY');
+// ---- AI providers ------------------------------------------------------------
+// You can switch on as MANY AI providers as you like; each one with a key shows
+// up in the AI panel's drop-down (and in "Ask all AIs" mode).
+//   anthropic - Claude            (official Anthropic SDK)
+//   openai    - ChatGPT           (OpenAI Chat Completions API)
+//   gemini    - Google Gemini     (Gemini generateContent API)
+//   custom1..3 - ANY "OpenAI-compatible" service: Grok (xAI), Mistral, DeepSeek,
+//               Groq, OpenRouter, Perplexity, Together, or a local Ollama / LM Studio.
+function buildAiProviders() {
+  const list = [];
+  const add = (p) => { if (p.apiKey || p.noKeyNeeded) list.push(Object.freeze(p)); };
+
+  add({ id: 'anthropic', kind: 'anthropic', label: 'Claude (Anthropic)',
+    apiKey: str('ANTHROPIC_API_KEY'), model: str('ANTHROPIC_MODEL', 'claude-opus-5-5') });
+
+  add({ id: 'openai', kind: 'openai-compatible', label: 'ChatGPT (OpenAI)',
+    apiKey: str('OPENAI_API_KEY'), model: str('OPENAI_MODEL'),
+    baseUrl: str('OPENAI_BASE_URL', 'https://api.openai.com/v1') });
+
+  add({ id: 'gemini', kind: 'gemini', label: 'Gemini (Google)',
+    apiKey: str('GEMINI_API_KEY'), model: str('GEMINI_MODEL'),
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta' });
+
+  // Up to 3 extra OpenAI-compatible providers: CUSTOM_AI_1_NAME, _BASE_URL, _API_KEY, _MODEL
+  for (let i = 1; i <= 3; i++) {
+    const baseUrl = str(`CUSTOM_AI_${i}_BASE_URL`);
+    if (!baseUrl) continue;
+    add({ id: `custom${i}`, kind: 'openai-compatible', label: str(`CUSTOM_AI_${i}_NAME`, `Custom AI ${i}`).slice(0, 40),
+      apiKey: str(`CUSTOM_AI_${i}_API_KEY`), model: str(`CUSTOM_AI_${i}_MODEL`), baseUrl,
+      noKeyNeeded: true }); // local servers like Ollama don't need a key
+  }
+  return Object.freeze(list);
+}
+const aiProviders = buildAiProviders();
 
 export const config = Object.freeze({
   // Web server
@@ -91,20 +122,11 @@ export const config = Object.freeze({
 
   // AI co-pilot (optional)
   ai: Object.freeze({
-    // "anthropic" (Claude) or "openai" (any OpenAI-compatible endpoint, e.g. Ollama)
-    // If the chosen provider has no key but the other one does, use the other.
-    provider: (() => {
-      const wanted = str('AI_PROVIDER', anthropicKey ? 'anthropic' : openaiKey ? 'openai' : 'none').toLowerCase();
-      if (wanted === 'anthropic' && !anthropicKey && openaiKey) return 'openai';
-      if (wanted === 'openai' && !openaiKey && anthropicKey) return 'anthropic';
-      return wanted;
-    })(),
-    anthropicKey,
-    anthropicModel: str('ANTHROPIC_MODEL', 'claude-opus-5-5'),
-    openaiKey,
-    openaiBaseUrl: str('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
-    openaiModel: str('OPENAI_MODEL', ''),
-    configured: Boolean(anthropicKey || openaiKey),
+    providers: aiProviders,
+    // Which provider the drop-down selects first (falls back to the first one configured)
+    defaultProvider: aiProviders.some((p) => p.id === str('AI_DEFAULT_PROVIDER'))
+      ? str('AI_DEFAULT_PROVIDER') : (aiProviders[0]?.id ?? null),
+    configured: aiProviders.length > 0,
   }),
 
   dataDir: str('DATA_DIR', './data'),

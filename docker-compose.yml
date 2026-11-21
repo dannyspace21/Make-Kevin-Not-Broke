@@ -21,6 +21,10 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - kevin-data:/app/data # watchdog state survives restarts/upgrades
+    # Lets the container reach a local AI server on your computer (e.g. Ollama)
+    # via http://host.docker.internal:11434/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # ---- Hardening ----
     read_only: true # container filesystem is read-only...
     tmpfs:

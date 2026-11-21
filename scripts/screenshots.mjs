@@ -20,7 +20,7 @@ const BASE = process.env.BASE_URL || 'http://localhost:8080';
 const OUT = 'docs/screenshots';
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1 });
+const page = await browser.newPage({ viewport: { width: 1600, height: 900 }, deviceScaleFactor: 1, colorScheme: 'dark' });
 
 // Start from a clean, predictable layout.
 await page.addInitScript(() => {
@@ -28,23 +28,37 @@ await page.addInitScript(() => {
     localStorage.clear();
     localStorage.setItem('mknb.symbol', JSON.stringify('NVDA'));
     localStorage.setItem('mknb.timeframe', JSON.stringify('15Min'));
+    localStorage.setItem('mknb.theme', JSON.stringify('dark'));
     sessionStorage.setItem('seeded', '1');
   }
 });
 
-// The AI needs a real API key; for the picture we return a clearly-labelled
-// sample response instead of calling a model.
+// The AIs need real API keys; for the pictures we pretend three are configured
+// and return clearly-labelled SAMPLE responses instead of calling any model.
+const SAMPLE_AIS = [
+  { id: 'anthropic', label: 'Claude (Anthropic)', model: 'sample' },
+  { id: 'openai', label: 'ChatGPT (OpenAI)', model: 'sample' },
+  { id: 'gemini', label: 'Gemini (Google)', model: 'sample' },
+];
+const SAMPLE_DECISIONS = {
+  anthropic: { action: 'HOLD', confidence: 62, position_size_pct: 0, reasoning: '[SAMPLE] Price pinned to the BB basis, RSI near 50 - no edge yet.' },
+  openai: { action: 'BUY', confidence: 55, position_size_pct: 10, reasoning: '[SAMPLE] Higher lows on the 15m chart and MACD curling up.' },
+  gemini: { action: 'SHORT', confidence: 48, position_size_pct: 5, reasoning: '[SAMPLE] Watchdog case pending - headline risk if a late 8-K lands.' },
+};
 await page.route('**/api/status', async (route) => {
   const res = await route.fetch();
   const json = await res.json();
-  json.ai = { enabled: true, provider: 'anthropic', model: 'sample' };
+  json.ai = { enabled: true, providers: SAMPLE_AIS, defaultProvider: 'anthropic' };
   await route.fulfill({ json });
 });
-await page.route('**/api/ai/simulate', (route) => route.fulfill({ json: { decision: {
-  action: 'HOLD', confidence: 62, position_size_pct: 0, entry: 0, stop_loss: 0, take_profit: 0,
-  reasoning: '[SAMPLE RESPONSE FOR SCREENSHOT] Price is pinned to the BB basis with RSI near 50 - no edge. Waiting for a close above the upper band or for the 8-K clock on the watched ticker to resolve.',
-  risks: ['Leak-site claim could become a late 8-K headline', 'Low IEX volume makes signals noisy'],
-} } }));
+await page.route('**/api/ai/simulate', async (route) => {
+  const { provider } = route.request().postDataJSON();
+  const d = SAMPLE_DECISIONS[provider];
+  await route.fulfill({ json: {
+    provider: { ...SAMPLE_AIS.find((p) => p.id === provider) },
+    decision: { entry: 0, stop_loss: 0, take_profit: 0, risks: ['Sample response for screenshot'], ...d },
+  } });
+});
 
 const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
 
@@ -75,8 +89,9 @@ await page.click('.tab[data-panel="panel-alerts"]');
 await page.waitForTimeout(300);
 await shot('alerts');
 
-// 5. AI co-pilot (sample response)
+// 5. Multi-AI co-pilot: ask every AI at once (sample responses)
 await page.click('.tab[data-panel="panel-ai"]');
+await page.check('#ai-all');
 await page.click('#btn-ai-sim');
 await page.waitForTimeout(800);
 await shot('ai-copilot');
@@ -86,6 +101,12 @@ await page.click('.tab[data-panel="panel-watchdog"]');
 await page.locator('.case').first().click();
 await page.waitForTimeout(2000);
 await shot('ticker-switch-keeps-indicators');
+
+// 7. Light mode
+await page.click('#btn-theme');
+await page.waitForTimeout(800);
+await shot('light-mode');
+await page.click('#btn-theme'); // back to night mode for next time
 
 await browser.close();
 console.log(`Screenshots written to ${OUT}/`);

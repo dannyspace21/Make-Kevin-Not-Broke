@@ -2,7 +2,8 @@
 
 > A cyberpunk, TradingView-style stock dashboard with live **Alpaca** market data,
 > **unlimited + custom indicators**, a **ransomware vs. SEC Form 8-K watchdog**, and an
-> optional **AI co-pilot**. Runs in Docker.
+> optional **multi-AI co-pilot** (Claude, ChatGPT, Gemini, Grok, Mistral, local Ollama...), plus
+> **night and light mode**. Runs in Docker.
 
 ![Dashboard](docs/screenshots/dashboard.png)
 
@@ -39,7 +40,8 @@
 | **8-K watchdog** | Pulls ransomware leak-site victims and keeps the ones that are U.S.-listed companies. It then checks **SEC EDGAR** for an 8-K cyber disclosure, counts **business days**, and raises an **alert** when a company passes day 4 with nothing filed, or files late. |
 | **Disclosed-in-time indicator** | Every case shows **✔ DISCLOSED ≤ 4 DAYS**, **✖ NOT DISCLOSED IN 4 DAYS** or **⏳ PENDING**, with a 4-box countdown bar. |
 | **Alerts** | In-app pop-ups, an Alerts tab and an optional Discord/Slack webhook. |
-| **AI co-pilot (optional)** | **Ask** questions about the chart. **Simulate** to see what the AI *would* do (BUY/SELL/SHORT/COVER/HOLD), recorded in a **paper wallet**. Optional auto-sim on a timer. |
+| **Multi-AI co-pilot (optional)** | Works with **any number of AIs**: Claude, ChatGPT, Gemini and any OpenAI-compatible service (Grok, Mistral, DeepSeek, Groq, OpenRouter, local Ollama...). Pick one, or **ask every AI at once** and compare. **Simulate** shows what each AI *would* do. Each AI gets its own **paper wallet**, and a **leaderboard** shows which would have made the most money. |
+| **Night / light mode** | Neon cyberpunk night mode and a clean light mode. Toggle with the ☀/☾ button. It follows your computer's setting until you choose, then remembers your choice. |
 | **Demo mode** | Works with no keys at all, using simulated prices and fictional cases. |
 
 ## Screenshots
@@ -47,7 +49,8 @@
 | | |
 |---|---|
 | **Indicator picker** - click to add as many as you want ![Indicator picker](docs/screenshots/indicator-picker.png) | **Custom indicator editor** - write, test and add ![Custom indicator editor](docs/screenshots/custom-indicator-editor.png) |
-| **AI co-pilot + paper wallet** *(sample response, mocked for the screenshot)* ![AI co-pilot](docs/screenshots/ai-copilot.png) | **Alerts tab** ![Alerts](docs/screenshots/alerts.png) |
+| **Ask every AI at once** *(sample responses, mocked for the screenshot)* ![AI co-pilot](docs/screenshots/ai-copilot.png) | **Light mode** ![Light mode](docs/screenshots/light-mode.png) |
+| **Alerts tab** ![Alerts](docs/screenshots/alerts.png) | |
 
 **Ticker switch keeps all indicators** (clicking a watchdog case loads its chart):
 
@@ -71,7 +74,8 @@ cp .env.example .env
 #    open .env in an editor and fill in at least:
 #      ALPACA_KEY_ID=...        ALPACA_SECRET_KEY=...
 #      SEC_USER_AGENT=KevinBot your-email@example.com
-#    (optional) ANTHROPIC_API_KEY=...   APP_PASSWORD=...
+#    (optional) any AI keys: ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY ...
+#    (optional) APP_PASSWORD=...
 
 # 3. build + start
 docker compose up -d --build
@@ -120,8 +124,11 @@ All settings are listed, with comments, in [`.env.example`](.env.example). The m
 | `ALPACA_FEED` | no | `iex` (free, default) or `sip` (paid). |
 | `SEC_USER_AGENT` | **yes for the watchdog** | The SEC requires a User-Agent with contact info, e.g. `KevinBot you@example.com`. |
 | `APP_PASSWORD` | recommended | Turns on a login prompt (user `APP_USER`, default `kevin`). |
-| `ANTHROPIC_API_KEY` | optional | Turns on the AI co-pilot with Claude (default model `claude-opus-5-5`). |
-| `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | optional | Use any OpenAI-compatible endpoint instead, such as OpenAI or a local Ollama. Set `AI_PROVIDER=openai`. |
+| `ANTHROPIC_API_KEY` (+ `ANTHROPIC_MODEL`) | optional | Claude. Default model `claude-opus-5-5`. |
+| `OPENAI_API_KEY` + `OPENAI_MODEL` | optional | ChatGPT. |
+| `GEMINI_API_KEY` + `GEMINI_MODEL` | optional | Google Gemini. |
+| `CUSTOM_AI_1..3_NAME / _BASE_URL / _API_KEY / _MODEL` | optional | Up to 3 more OpenAI-compatible AIs: Grok, Mistral, DeepSeek, Groq, OpenRouter, local Ollama... |
+| `AI_DEFAULT_PROVIDER` | optional | Which AI is selected first (`anthropic`, `openai`, `gemini`, `custom1`...). |
 | `ALERT_WEBHOOK_URL` | optional | A Discord or Slack incoming-webhook URL that receives watchdog alerts. |
 | `RANSOM_POLL_MINUTES` | no | How often the watchdog scans (default 30, minimum 5). |
 
@@ -198,22 +205,40 @@ where you can edit or delete them.
 
 ## AI co-pilot
 
-Add `ANTHROPIC_API_KEY` (or an OpenAI-compatible key) to `.env` and restart. The **AI CO-PILOT** tab then turns on.
+The co-pilot is **not locked to one company**. Every AI you give a key to shows up in the drop-down:
+
+| AI | What to put in `.env` | Where to get a key |
+|---|---|---|
+| **Claude** (Anthropic) | `ANTHROPIC_API_KEY`, optional `ANTHROPIC_MODEL` | <https://console.anthropic.com> |
+| **ChatGPT** (OpenAI) | `OPENAI_API_KEY`, `OPENAI_MODEL` | <https://platform.openai.com/api-keys> |
+| **Gemini** (Google) | `GEMINI_API_KEY`, `GEMINI_MODEL` | <https://aistudio.google.com/apikey> |
+| **Grok** (xAI) | `CUSTOM_AI_1_BASE_URL=https://api.x.ai/v1` + key + model | <https://console.x.ai> |
+| **Mistral** | `CUSTOM_AI_1_BASE_URL=https://api.mistral.ai/v1` + key + model | <https://console.mistral.ai> |
+| **DeepSeek** | `CUSTOM_AI_1_BASE_URL=https://api.deepseek.com/v1` + key + model | <https://platform.deepseek.com> |
+| **OpenRouter** (one key, hundreds of models) | `CUSTOM_AI_1_BASE_URL=https://openrouter.ai/api/v1` + key + model | <https://openrouter.ai/keys> |
+| **Ollama** (free, runs on your own PC) | `CUSTOM_AI_1_BASE_URL=http://host.docker.internal:11434/v1` + model, **no key** | <https://ollama.com> |
+
+You get 3 `CUSTOM_AI_n_*` slots (`n` = 1, 2 or 3), so you can run, for example, Claude + ChatGPT + Gemini + Grok + Ollama together.
+Model names change often. Check your provider's model list and put the exact name in `*_MODEL`.
+
+What it does:
 
 - **Ask the AI**: the AI receives the last 120 candles, your current indicator values, and the watchdog case
   for the ticker (if there is one), then answers your question.
+- **Ask every AI at once**: tick the box to send the same question or simulation to every configured AI and see
+  the answers side by side.
 - **What would the AI do?**: returns a structured decision (action, confidence, size, entry, stop-loss,
   take-profit, reasoning, risks). You can add a scenario such as *"assume they file a late 8-K tomorrow"*.
-- **Paper wallet**: each decision is applied to a simulated $10,000 wallet kept in your browser, so you can see
-  how the AI would have done. **No real orders are ever sent to any broker.**
+- **AI leaderboard**: each AI trades its **own** simulated $10,000 paper wallet, kept in your browser. The
+  leaderboard ranks them, so you can see which AI would have made Kevin the most money. **No real orders are ever
+  sent to any broker.**
 - **Auto every N min**: repeats the simulation on a timer (minimum 5 minutes, to limit AI costs).
 
-Your API keys stay on the server. The browser sends only market numbers and your question. The server rate-limits
-AI calls to 10 per minute.
+Your API keys stay on the server. The browser sends only market numbers, your question and the *name* of the AI to
+use. The server only accepts names from its own list. AI calls are rate-limited to 20 per minute.
 
-> ⚠️ The AI can be wrong. It does not know your finances. Nothing here is financial advice.
-
----
+> ⚠️ AIs can be wrong, and they often disagree with each other. They don't know your finances. Nothing here is
+> financial advice.
 
 ## Project layout (where is what)
 
@@ -235,18 +260,19 @@ AI calls to 10 per minute.
 │   │   ├── evaluate.js      # status rules (CLOCK RUNNING / OVERDUE / ...)
 │   │   ├── normalize.js     # company-name cleanup for matching
 │   │   └── sources/         # Ransomware.live, HIBP, generic JSON feed, demo cases
-│   ├── ai/copilot.js        # Claude / OpenAI-compatible calls, JSON decision schema
+│   ├── ai/copilot.js        # multi-AI adapters: Claude, Gemini, OpenAI-compatible (ChatGPT, Grok, Ollama...)
 │   └── util/                # business-day math, safe fetch, JSON file store, logger, validation
 ├── public/                  # ---- BROWSER ----
 │   ├── index.html           # page layout
-│   ├── css/style.css        # cyberpunk theme
+│   ├── css/style.css        # cyberpunk theme (night + light mode colours)
 │   └── js/
 │       ├── app.js           # main controller: state, ticker switch, indicators, live ticks
 │       ├── chart.js         # Lightweight Charts wrapper (panes, series)
 │       ├── indicators.js    # indicator math + built-in catalogue
 │       ├── indicator-worker.js  # sandbox for custom indicator code
 │       ├── ransom.js        # watchdog + alerts panels
-│       ├── ai.js            # AI panel + paper wallet
+│       ├── ai.js            # multi-AI panel, compare mode, per-AI paper wallets + leaderboard
+│       ├── theme-init.js    # picks light/night mode before the page draws
 │       └── ui.js            # safe DOM builder, toasts, modals, storage
 ├── test/                    # unit tests (npm test)
 ├── scripts/screenshots.mjs  # regenerates README pictures
@@ -265,7 +291,7 @@ These protections were built in from the start:
 | **XSS (malicious company names, AI output)** | The UI never uses `innerHTML` with data. All text is set with `textContent`. A strict **Content-Security-Policy** allows only our own scripts, so there are no inline scripts and no CDNs. |
 | **Malicious custom-indicator code** | It runs in a **Web Worker** with its own CSP (`connect-src 'none'`), so it has no network, no DOM, no cookies and no storage. A **2-second timeout** kills infinite loops. Output is validated. |
 | **CSRF** (another site using your login) | All POST requests need a custom header that browsers won't send cross-site. The WebSocket checks the `Origin`. |
-| **Abuse / runaway costs** | Rate limits: 120 API requests/min, 10 AI requests/min, 3 manual scans per 5 min. Limits on live symbols per tab and on WebSocket messages. |
+| **Abuse / runaway costs** | Rate limits: 120 API requests/min, 20 AI requests/min, 3 manual scans per 5 min. Limits on live symbols per tab and on WebSocket messages. |
 | **Bad input** | Tickers, timeframes and text are validated against allow-lists. Body size is capped. AI decisions are re-validated and clamped. |
 | **Unauthorized access** | Optional HTTP Basic Auth with constant-time comparison. Docker binds to `127.0.0.1` by default. |
 | **Container breakout / tampering** | Runs as non-root `node`. Read-only filesystem, all Linux capabilities dropped, `no-new-privileges`, memory/PID limits. Production-only dependencies installed with `--ignore-scripts`. |
@@ -302,5 +328,7 @@ Auth over plain HTTP sends the password unencrypted.
 | "Alpaca rejected the API keys" | Wrong key or secret, or the keys were regenerated. Copy them again. |
 | Pop-up "Market stream: error 406" | Another program is already streaming with the same Alpaca keys. The free plan allows one connection. |
 | Watchdog shows `SEC EDGAR: error HTTP 403` | Set `SEC_USER_AGENT` to something like `KevinBot you@example.com`. |
-| AI tab is greyed out | Add `ANTHROPIC_API_KEY` (or OpenAI settings) to `.env` and restart. |
+| AI tab is greyed out | Add at least one AI key to `.env` and restart. |
+| "model not found" from an AI | Put an exact, current model name in that provider's `*_MODEL` setting. |
+| Ollama can't be reached from Docker | Use `http://host.docker.internal:11434/v1` as the base URL (not `localhost`). |
 | Custom indicator shows ⚠ error | Hover the legend row to see the message, or open the editor and press **▶ Test**. |
