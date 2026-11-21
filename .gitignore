@@ -1,0 +1,11 @@
+# Dependencies
+node_modules/
+# Secrets - NEVER commit your real keys
+.env
+.env.*
+!.env.example
+# Runtime data
+data/*
+!data/.gitkeep
+*.log
+.DS_Store

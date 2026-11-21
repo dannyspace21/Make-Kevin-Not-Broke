@@ -1,0 +1,35 @@
+# =============================================================================
+# docker-compose.yml - one command to run everything:   docker compose up -d
+# -----------------------------------------------------------------------------
+# Secrets come from the .env file next to this file (copy .env.example -> .env).
+# =============================================================================
+services:
+  kevin:
+    build: .
+    image: make-kevin-not-broke:latest
+    container_name: make-kevin-not-broke
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATA_DIR: /app/data
+    ports:
+      # Bound to 127.0.0.1 = only reachable from THIS computer.
+      # To expose on your network, change to "8080:8080" AND set APP_PASSWORD
+      # (better: put it behind an HTTPS reverse proxy).
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - kevin-data:/app/data # watchdog state survives restarts/upgrades
+    # ---- Hardening ----
+    read_only: true # container filesystem is read-only...
+    tmpfs:
+      - /tmp # ...except a small in-memory /tmp
+    cap_drop: [ALL] # drop every Linux capability (none are needed)
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 200
+
+volumes:
+  kevin-data:

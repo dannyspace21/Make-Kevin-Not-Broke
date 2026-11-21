@@ -1,0 +1,133 @@
+<!doctype html>
+<!--
+  index.html - the single page of the app.
+  Layout (TradingView style):
+    [ header: logo | ticker search | timeframes | indicator buttons | status pills ]
+    [ watchlist | chart (+ legend overlay + indicator panes) | sidebar tabs        ]
+  No inline scripts or styles: our Content-Security-Policy forbids them.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Make Kevin Not Broke</title>
+  <meta name="description" content="Cyberpunk trading dashboard: live Alpaca charts, unlimited and custom indicators, ransomware SEC 8-K watchdog, AI co-pilot.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- TradingView Lightweight Charts (Apache-2.0), served locally from node_modules -->
+  <script src="/vendor/lightweight-charts/lightweight-charts.standalone.production.js" defer></script>
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="topbar">
+    <h1 class="logo glitch" data-text="MAKE KEVIN NOT BROKE">MAKE KEVIN NOT BROKE</h1>
+
+    <form id="ticker-form" class="ticker-form" autocomplete="off">
+      <label for="ticker-input" class="sr-only">Ticker symbol</label>
+      <input id="ticker-input" class="input ticker" maxlength="10" placeholder="TICKER" spellcheck="false">
+      <button class="btn" type="submit">GO</button>
+    </form>
+
+    <div class="quote">
+      <span id="quote-symbol" class="quote-symbol">--</span>
+      <span id="quote-price" class="quote-price">--</span>
+      <span id="quote-change"></span>
+    </div>
+
+    <nav id="timeframes" class="timeframes" aria-label="Timeframe"></nav>
+
+    <div class="toolbar">
+      <button id="btn-indicators" class="btn">ƒx Indicators <span id="indicator-count" class="count">0</span></button>
+      <button id="btn-custom" class="btn btn-pink">+ Custom</button>
+    </div>
+
+    <div class="pills">
+      <span id="pill-mode" class="pill">…</span>
+      <span id="pill-stream" class="pill">…</span>
+      <span id="pill-ai" class="pill">…</span>
+    </div>
+  </header>
+
+  <!-- ===================== MAIN ===================== -->
+  <main class="layout">
+    <aside class="watch" aria-label="Watchlist">
+      <h2 class="panel-title">WATCHLIST</h2>
+      <ul id="watchlist" class="watchlist"></ul>
+    </aside>
+
+    <section class="chart-wrap" aria-label="Price chart">
+      <div id="chart" class="chart"></div>
+      <div id="legend" class="legend" aria-label="Active indicators"></div>
+      <div id="chart-status" class="chart-status" role="status"></div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-panel="panel-watchdog">8-K WATCHDOG</button>
+        <button class="tab" data-panel="panel-alerts">ALERTS <span id="alert-badge" class="count" hidden>0</span></button>
+        <button class="tab" data-panel="panel-ai">AI CO-PILOT</button>
+      </div>
+
+      <!-- Ransomware vs SEC 8-K -->
+      <section id="panel-watchdog" class="tab-panel active">
+        <div class="row">
+          <select id="ransom-filter" class="input" aria-label="Filter cases">
+            <option value="all">All U.S.-listed cases</option>
+            <option value="alerts">Alerts only</option>
+            <option value="open">Undisclosed only</option>
+          </select>
+          <button id="btn-ransom-refresh" class="btn">⟳ Scan</button>
+        </div>
+        <div id="ransom-meta" class="meta"></div>
+        <details class="sources"><summary>Data sources</summary><ul id="ransom-sources"></ul></details>
+        <div id="ransom-list" class="case-list"></div>
+        <p class="disclaimer">Leak-site claims are unverified. The SEC 4-business-day clock legally starts at the company's
+          <em>materiality determination</em>, which is not public. The leak-site date is only a proxy. Not financial advice.</p>
+      </section>
+
+      <section id="panel-alerts" class="tab-panel">
+        <ul id="alert-list" class="alert-list"></ul>
+      </section>
+
+      <!-- AI co-pilot -->
+      <section id="panel-ai" class="tab-panel">
+        <p id="ai-disabled" class="notice" hidden>AI is off. Add <code>ANTHROPIC_API_KEY</code> (or an OpenAI-compatible key) to <code>.env</code> and restart.</p>
+        <form id="ai-ask-form" class="ai-form">
+          <label for="ai-question" class="panel-title">ASK THE AI</label>
+          <textarea id="ai-question" class="input" rows="3" maxlength="2000" placeholder="e.g. Is RSI divergence forming? Should I worry about the 8-K clock?"></textarea>
+          <button class="btn" type="submit">Ask</button>
+        </form>
+        <pre id="ai-answer" class="ai-answer"></pre>
+
+        <h3 class="panel-title">WHAT WOULD THE AI DO?</h3>
+        <textarea id="ai-scenario" class="input" rows="2" maxlength="2000" placeholder="Optional scenario: e.g. 'Assume the company files a late 8-K tomorrow'"></textarea>
+        <div class="row">
+          <button id="btn-ai-sim" class="btn btn-pink">🤖 Simulate decision</button>
+          <label class="auto"><input id="ai-auto" type="checkbox"> auto every
+            <input id="ai-auto-minutes" class="input mini" type="number" min="5" max="240" value="15"> min</label>
+        </div>
+        <div id="ai-decision" class="ai-decision"></div>
+
+        <h3 class="panel-title">PAPER WALLET <small>(simulated - no real orders)</small></h3>
+        <div id="wallet-summary" class="wallet-summary"></div>
+        <ul id="wallet-log" class="wallet-log"></ul>
+        <button id="btn-wallet-reset" class="btn btn-small">Reset wallet</button>
+      </section>
+    </aside>
+  </main>
+
+  <!-- Reusable modal dialog (indicator picker, settings, custom editor) -->
+  <dialog id="modal" class="modal">
+    <header class="modal-head">
+      <h2 id="modal-title">…</h2>
+      <button id="modal-close" class="icon" aria-label="Close">✕</button>
+    </header>
+    <div id="modal-body" class="modal-body"></div>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</body>
+</html>

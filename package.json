@@ -1,0 +1,37 @@
+{
+  "name": "make-kevin-not-broke",
+  "version": "1.0.0",
+  "description": "Make Kevin Not Broke - cyberpunk TradingView-style stock dashboard with Alpaca live data, custom indicators, SEC 8-K ransomware disclosure watchdog and optional AI co-pilot",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js",
+    "screenshots": "node scripts/screenshots.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dannyspace21/Make-Kevin-Not-Broke.git"
+  },
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/dannyspace21/Make-Kevin-Not-Broke/issues"
+  },
+  "homepage": "https://github.com/dannyspace21/Make-Kevin-Not-Broke#readme",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
+    "@fontsource/orbitron": "^5.3.0",
+    "@fontsource/share-tech-mono": "^5.3.0",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.5",
+    "helmet": "^8.3.0",
+    "lightweight-charts": "^5.3.0",
+    "ws": "^8.23.0"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}
