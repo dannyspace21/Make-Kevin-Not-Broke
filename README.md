@@ -1,6 +1,6 @@
 # MAKE KEVIN NOT BROKE
 
-> A TradingView-style stock dashboard (with a cyberpunk name and an optional full cyberpunk theme) with live **Alpaca** market data,
+> A TradingView-style stock dashboard with live **Alpaca** market data,
 > **unlimited + custom indicators**, a **ransomware vs. SEC Form 8-K watchdog**, and an
 > optional **multi-AI co-pilot** (Claude, ChatGPT, Gemini, Grok, Mistral, local Ollama...), plus
 > **two themes (Pro / Cyberpunk)** with **dark and light mode**. Runs in Docker.
